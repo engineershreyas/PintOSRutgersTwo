@@ -6,8 +6,18 @@
 #include "filesys/filesys.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
+#include "threads/malloc.h"
 
 struct lock file_lock;
+
+struct t_file {
+  struct file *file;
+  int fd;
+  struct list_elem elem;
+}
+
+int add_file_to_thread(struct file *f);
+struct file* find_file_in_thread(int fd);
 
 static void syscall_handler (struct intr_frame *);
 
@@ -44,5 +54,57 @@ bool remove(const char *file){
   lock_release(&file_lock);
 
   return success;
+
+}
+
+int open(const char *file){
+
+  lock_acquire(&file_lock);
+  struct file *f = filesys_open(file);
+  if(f == NULL){
+    lock_release(&file_lock);
+    return -1;
+  }
+  else{
+    int fd = add_file_to_thread(f);
+    lock_release(&file_lock);
+    return fd;
+  }
+
+}
+
+int filesize(int fd){
+  lock_acquire(&file_lock);
+  struct file *f = find_file_in_thread(fd);
+  if(f == NULL){
+      lock_release(&file_lock);
+      return -1;
+  }
+  int len = file_length(f);
+  lock_release(&file_lock);
+  return len;
+}
+
+int add_file_to_thread(struct file *f){
+  struct t_file *tf = malloc(sizeof(struct p_file));
+  tf->file = f;
+  struct thread *t = thread_current();
+  tf->fd = t->fd;
+  t->fd++;
+  list_push_back(&t->files,&tf->elem);
+
+  return pf->fd;
+}
+
+struct file* find_file_in_thread(int fd){
+  struct thread *t = thread_current();
+  struct list_elem *el;
+
+  for(el = list_begin(&t->files); el ! list_end(&t->files); el = list_next(elem)){
+    struct t_file *tf = list_entry(el, struct t_file, elem);
+    if(tf->fd == fd) return tf->file;
+  }
+
+  return NULL;
 
 }
