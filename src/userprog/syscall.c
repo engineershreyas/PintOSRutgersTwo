@@ -39,7 +39,7 @@ bool create(const char *file, unsigned initial_size){
 
   bool success = false;
   lock_acquire(&file_lock);
-  success = filesys_open(file,initial_size);
+  success = filesys_create(file,initial_size);
   lock_release(&file_lock);
 
   return success;
