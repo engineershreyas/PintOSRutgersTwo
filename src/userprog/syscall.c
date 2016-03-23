@@ -93,7 +93,7 @@ int add_file_to_thread(struct file *f){
   t->fd++;
   list_push_back(&t->files,&tf->elem);
 
-  return pf->fd;
+  return tf->fd;
 }
 
 struct file* find_file_in_thread(int fd){
