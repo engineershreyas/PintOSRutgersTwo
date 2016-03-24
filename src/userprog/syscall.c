@@ -7,6 +7,7 @@
 #include "threads/synch.h"
 #include "threads/thread.h"
 #include "threads/malloc.h"
+#include "filesys/file.h"
 
 struct lock file_lock;
 
@@ -70,6 +71,27 @@ int open(const char *file){
     lock_release(&file_lock);
     return fd;
   }
+
+}
+
+void close(int fd){
+  lock_acquire(&file_lock);
+  struct thread *t = thread_current();
+  struct list_elem *el;
+
+  for(el = list_begin(&t->files); el ! list_end(&t->files); el = list_next(elem)){
+    struct t_file *tf = list_entry(el, struct t_file, elem);
+    if(tf->fd == fd){
+      struct t_file *tf = list_remove(tf->elem);
+      file_close(tf->file);
+      free(tf);
+      lock_release(&file_lock);
+      return;
+    }
+  }
+
+  lock_release(&file_lock);
+
 
 }
 
