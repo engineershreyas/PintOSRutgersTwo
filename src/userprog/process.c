@@ -18,6 +18,10 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+<<<<<<< HEAD
+=======
+#include "threads/synch.h"
+>>>>>>> HEAD@{1}
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -60,6 +64,13 @@ struct listString {
   struct list_elem elem;
 };
 
+<<<<<<< HEAD
+=======
+struct listString stringElem; //allows us to push into a type "struct list"
+struct list listOfArgs; //hold the args so we may push them to the stack after the next for loop
+struct lock lockA;
+
+>>>>>>> HEAD@{1}
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -106,7 +117,11 @@ process_execute(const char *file_name) //implement arbetrary number of arguement
   */
 
   //ASK TA ABOUT THIS
+<<<<<<< HEAD
   fn_copy = palloc_get_page(1); //initialize the user page at PHYS_BASE - 12
+=======
+  fn_copy = palloc_get_page(0); //initialize the user page at PHYS_BASE - 12
+>>>>>>> HEAD@{1}
 
   if (fn_copy == NULL)
     return TID_ERROR;
@@ -228,6 +243,20 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+  //need to acquire the first arguement of the string (the actual filename)
+  char *savePoint;
+  char* fName = strtok_r(file_name, " ", &savePoint);
+  char** savePlace; //the save marker to iterate through every arguement using strtok_r()
+  char* token; //the return value of strtok_r()
+
+  //this for loop delimits the arguements and stores them into a list. first element is the last arguement
+  //we do this so we can place the arguements on the stack from the front to back
+  for (token = strtok_r(fName, " ", savePlace); token != NULL; token = strtok_r(NULL, " ", savePlace)) {
+    //must include the terminating character with the 
+    stringElem.arg = token;
+    list_push_front(&listOfArgs, &stringElem.elem);
+  }
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -264,9 +293,12 @@ int
 process_wait (tid_t child_tid UNUSED) 
 {
   //changed to infinite loop to avoid power off before process executes
+<<<<<<< HEAD
   int loop = 0;
   while (loop == 0) {
   }
+=======
+>>>>>>> HEAD@{1}
   return -1;
 }
 
@@ -375,7 +407,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (const char *file_name, void **esp); //added a file_name so that strtor_k() can be ran
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -482,7 +514,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (file_name, esp))
     goto done;
 
   /* Start address. */
@@ -607,20 +639,121 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp) 
+setup_stack (const char *file_name, void **esp) 
 {
+  //acquire lock to set up stack
+  lock_acquire(&lockA);
+
   uint8_t *kpage;
   bool success = false;
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage != NULL) 
-    {
+  if (kpage != NULL) {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+<<<<<<< HEAD
       if (success)
         *esp = PHYS_BASE - 12; //move the stack pointer down 3 words to avoid page fault
       else
+=======
+      if (success) {
+        *esp = PHYS_BASE - 12; //move the stack pointer down 3 words to avoid page fault
+      }
+      else {
+>>>>>>> HEAD@{1}
         palloc_free_page (kpage);
+        return success;
+      }
+  }
+
+    //custom variables
+  char* fName = (char *)file_name; //have to type convert from "const char*" to "char*"
+  char* termPointer = "\0";
+  //void* *esp = PHYS_BASE - 12;
+
+  //write a simple c file to test that the stack pointer is still the same address
+  //this WILL move the stackptr, you need to move it back
+
+  realloc(*esp, 4096); //allocate 4kBytes to the stack
+  char* memalloc;
+  //**esp = PHYS_BASE - 12;
+
+  //this for loop pushes the arguements to the stack
+  size_t argSize = 0;
+  size_t argCount = list_size(&listOfArgs);
+  struct list_elem* e;
+  char* argAddress[argCount]; //pointer that points to pointers of every string arguement
+  int index = 0; //to access the index of argAddress
+  for (e = list_begin(&listOfArgs); e != list_end(&listOfArgs); e = list_next(e)) {
+    //starts from last arguement, and moves to first arguement
+    struct listString *getString = list_entry(e, struct listString, elem);
+    argSize += strlen(getString->arg) + 1; //used to check word alingment after all arguements are pushed
+
+    //copy the string to the stack
+    strlcpy(*esp, getString->arg, strlen(getString->arg));
+
+    //move the stack pointer based on the size of the string
+    *esp = *esp - strlen(getString->arg);
+
+    //now add the terminating character tho the stack
+    strlcpy(*esp, termPointer, 1);
+
+    //move the stack pointer one byte
+    *esp = *esp - 1;
+
+    //test if memalloc grows up or down
+    printf("the address of the malloc pointer is currently %p\n", memalloc);
+
+    //add the pointer to this arguement to argAddress and incriment index
+    argAddress[index] = (char*)*esp;
+    printf("the address is currently %p\n", *esp);
+    index++;
+
+    //removes the arguement just placed on stack from the list
+    list_pop_front(&listOfArgs);
+
+  }
+
+  uint32_t pointerSize = 4;
+
+  //realign the stack pointer
+  if (argSize % 4 != 0) {
+    uint32_t r = argSize % 4;
+    *esp -= r; //moves stack pointer to an address that is divisible by 4
+  }
+
+  unsigned int i;
+  //this for loop will push the addresses of each arguement to the stack
+  /*NOTE: getting a warning:
+  "warning: assignment makes integer from pointer without a cast"
+  */
+  for(i = 0; i != argCount; ++i) {
+    //push the address to the stack from the last arguement to the first arguement
+
+    //store the address in the allocated memory
+    *esp = argAddress[i];
+  
+    //move the stack pointer down one word
+    *esp -= pointerSize;
+
+    if(i == argCount - 1) {
+      //now we store argv itself (the pointer that points to the pointer of the first arguement)
+      //set this value to be the pointer that points to the pointer of arg[0]
+      **(char***)esp = *esp + pointerSize; //the value of the stack pointer points to the pointer of the pointer of the first arguement
+      *esp -= pointerSize;
+
     }
+  }
+
+  //now we push the number of arguements
+  **(size_t**)esp = argCount;
+  *esp -= sizeof(size_t);
+
+  //finally, push a fake return address
+  **(int**)esp = 0;
+  *esp -= sizeof(size_t);
+  lock_release(&lockA);
+
+
   return success;
 }
 
