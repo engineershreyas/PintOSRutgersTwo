@@ -17,8 +17,7 @@ struct t_file {
   struct list_elem elem;
 }
 
-int add_file_to_thread(struct file *f);
-struct file* find_file_in_thread(int fd);
+
 
 static void syscall_handler (struct intr_frame *);
 
