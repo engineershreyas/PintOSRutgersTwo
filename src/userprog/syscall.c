@@ -108,7 +108,7 @@ int filesize(int fd){
 }
 
 int add_file_to_thread(struct file *f){
-  struct t_file *tf = malloc(sizeof(struct p_file));
+  struct t_file *tf = malloc(sizeof(struct t_file));
   tf->file = f;
   struct thread *t = thread_current();
   tf->fd = t->fd;
