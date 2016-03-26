@@ -18,7 +18,10 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+<<<<<<< HEAD
+=======
 #include "threads/synch.h"
+>>>>>>> HEAD@{1}
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -61,10 +64,13 @@ struct listString {
   struct list_elem elem;
 };
 
+<<<<<<< HEAD
+=======
 struct listString stringElem; //allows us to push into a type "struct list"
 struct list listOfArgs; //hold the args so we may push them to the stack after the next for loop
 struct lock lockA;
 
+>>>>>>> HEAD@{1}
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -79,6 +85,30 @@ process_execute(const char *file_name) //implement arbetrary number of arguement
   char *fn_copy;
   tid_t tid;
 
+  //custom variables
+  char* fName = (char *)file_name; //have to type convert from "const char*" to "char*"
+  char* termPointer = "\0";
+  void* stackPointer = PHYS_BASE - 12;
+
+  //write a simple c file to test that the stack pointer is still the same address
+  //this WILL move the stackptr, you need to move it back
+
+  realloc(stackPointer, 1024); //allocate 1kBytes to the stack
+  char* memalloc;
+  //*stackPointer = PHYS_BASE - 12;
+  char** savePlace; //the save marker to iterate through every arguement using strtok_r()
+  char* token; //the return value of strtok_r()
+  struct listString stringElem; //allows us to push into a type "struct list"
+  struct list listOfArgs; //hold the args so we may push them to the stack after the next for loop
+
+  //this for loop delimits the arguements and stores them into a list. first element is the last arguement
+  //we do this so we can place the arguements on the stack from the front to back
+  for (token = strtok_r(fName, " ", savePlace); token != NULL; token = strtok_r(NULL, " ", savePlace)) {
+    //must include the terminating character with the 
+    stringElem.arg = token;
+    list_push_front(&listOfArgs, &stringElem.elem);
+  }
+
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
 
@@ -87,11 +117,115 @@ process_execute(const char *file_name) //implement arbetrary number of arguement
   */
 
   //ASK TA ABOUT THIS
+<<<<<<< HEAD
+  fn_copy = palloc_get_page(1); //initialize the user page at PHYS_BASE - 12
+=======
   fn_copy = palloc_get_page(0); //initialize the user page at PHYS_BASE - 12
+>>>>>>> HEAD@{1}
 
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
+
+
+  //this for loop pushes the arguements to the stack
+  size_t argSize = 0;
+  size_t argCount = list_size(&listOfArgs);
+  struct list_elem* e;
+  char* argAddress[argCount]; //pointer that points to pointers of every string arguement
+  int index = 0; //to access the index of argAddress
+  for (e = list_begin(&listOfArgs); e != list_end(&listOfArgs); e = list_next(e)) {
+    //starts from last arguement, and moves to first arguement
+    struct listString *getString = list_entry(e, struct listString, elem);
+    argSize += strlen(getString->arg) + 1; //used to check word alingment after all arguements are pushed
+
+    if (e == list_begin(&listOfArgs)) { //if it is the first arguement in the list
+      //allocate memory based on the size of the string
+      memalloc = malloc(strlen(getString->arg));
+    } else {
+      //realloc adds to the size of the old block, so we specify the new size with argSize
+      memalloc = realloc(memalloc, argSize);
+    }
+
+    //insert to allocated memory to fill newly allocated memory space
+    //as a cast, a char* reads until the terminating character
+    strlcpy(memalloc, getString->arg, strlen(getString->arg));
+
+    //now pass in the terminating character
+    memalloc = realloc(memalloc, 1);
+    strlcpy(memalloc, termPointer, 1);
+
+    //test if memalloc grows up or down
+    printf("the address of the malloc pointer is currently %p\n", memalloc);
+
+    //memcpy copies without worrying about the datatype. it's basically typecasting the pointer
+    //for addresses, just declare something that is 4 bytes long (such as an int)
+    //declare as uint32
+    memcpy(stackPointer, memalloc, strlen(getString->arg));
+
+    //add the pointer to this arguement to argAddress and incriment index
+    argAddress[index] = (char*)stackPointer;
+    printf("the address is currently %p\n", stackPointer);
+    index++;
+
+    stackPointer = stackPointer - (strlen(getString->arg)); //move the stack pointer by the size of the arguement (including terminating character)
+
+    //removes the arguement just placed on stack from the list
+    list_pop_front(&listOfArgs);
+
+  }
+
+  uint32_t pointerSize = 4;
+  char** memalloc2; //use this pointer to allocate memory for storing pointers
+  //realign the stack pointer
+  if (argSize % 4 != 0) {
+    uint32_t r = argSize % 4;
+    stackPointer -= r; //moves stack pointer to an address that is divisible by 4
+  }
+
+  unsigned int i;
+  //this for loop will push the addresses of each arguement to the stack
+  /*NOTE: getting a warning:
+  "warning: assignment makes integer from pointer without a cast"
+  */
+  for(i = 0; i != argCount; ++i) {
+    //push the address to the stack from the last arguement to the first arguement
+    if (i == 0) {
+      memalloc2 = malloc(pointerSize);
+    } else {
+      memalloc2 = realloc(memalloc2, pointerSize);
+    }
+
+    //store the address in the allocated memory
+    memalloc2 = &argAddress[i];
+    //copy the allocated memory to the stack
+    memcpy(stackPointer, memalloc2, pointerSize);
+    //move the stack pointer down one word
+    stackPointer -= pointerSize;
+
+    if(i == argCount - 1) {
+      //now we store argv itself (the pointer that points to the pointer of the first arguement)
+      //set this value to be the pointer that points to the pointer of arg[0]
+      char*** argVPoint = malloc(pointerSize);
+      *argVPoint = (char**)(stackPointer + pointerSize);
+      memcpy(stackPointer, argVPoint, pointerSize);
+      stackPointer -= pointerSize;
+    }
+  }
+
+  size_t* memalloc3;
+
+  //now we push the number of arguements
+  memalloc3 = malloc(sizeof(size_t));
+  memalloc3 = &argCount;
+  memcpy(stackPointer, memalloc3, sizeof(size_t));
+  stackPointer -= sizeof(size_t);
+
+  //finally, push a fake return address
+  memalloc3 = realloc(memalloc3, sizeof(size_t));
+  memalloc3 = NULL;
+  memcpy(stackPointer, memalloc3, sizeof(size_t));
+  stackPointer -= sizeof(size_t);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
@@ -159,6 +293,12 @@ int
 process_wait (tid_t child_tid UNUSED) 
 {
   //changed to infinite loop to avoid power off before process executes
+<<<<<<< HEAD
+  int loop = 0;
+  while (loop == 0) {
+  }
+=======
+>>>>>>> HEAD@{1}
   return -1;
 }
 
@@ -510,10 +650,16 @@ setup_stack (const char *file_name, void **esp)
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+<<<<<<< HEAD
+      if (success)
+        *esp = PHYS_BASE - 12; //move the stack pointer down 3 words to avoid page fault
+      else
+=======
       if (success) {
         *esp = PHYS_BASE - 12; //move the stack pointer down 3 words to avoid page fault
       }
       else {
+>>>>>>> HEAD@{1}
         palloc_free_page (kpage);
         return success;
       }

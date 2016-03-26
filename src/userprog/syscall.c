@@ -65,6 +65,32 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 	switch(*sysPoint) {
 
+		case(SYS_READ) {
+			if (!argCheck(f,3)) {
+				quit(f);
+				break;
+			}
+			int fd = * (int *) (f->esp + 4);
+			char *buffer = * (char **) (f->esp + 8);
+			int size = * (int *) (f->esp + 12);
+			if(buffer == NULL || !is_user_vaddr (buffer) || lookup_page(cur->pagedir, buffer, false) == NULL) {
+				quit(f);
+				break;
+			}
+			struct t_file *currFile ;
+			currFile = find_file_in_thread(fd);
+			if(currFile != NULL) {
+				//returns the bytes actually read, as opposed to the bytes that wanted to be read
+				f->eax = file_read(currFile->file, buffer, size);
+			}
+			else if(fd == 0) { //if fd == 0, then we read from keyboard input
+				//read from keyboard instead
+				input_getc();
+				f->eax = size;
+			}
+			break;
+		}
+
 		/*This systemcall writes to a file. the data to be written starts from BUFFER and will be 
 		written until BUFFER has written SIZE bytes or the file has ran out of space to be written too */
 		case(SYS_WRITE) {
