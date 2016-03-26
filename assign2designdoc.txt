@@ -68,7 +68,7 @@ used the "strtok_r()" function in the condition statement of the for loop to par
 arguement to "listOfArgs". the arguements were parsed from left to right, so we push each arguement
 to the front of the stack on each iteration such that the last arguement is the first element of "listOfArgs".
 from here, we simply pop the front of the list for each arguement that we push onto the stack from the last arguement
-to the first arguement. 
+to the first arguement.
 
 ---- RATIONALE ----
 
@@ -87,7 +87,7 @@ for each file
 
 the kernel's job is to track time and manage memory of the system. Arguement parsing is not
 involved in either of these jobs. Therefore, we can assign this job to a user program instead,
-which increaces the cohesion of the system, thereby freeing the kernel to focus on the 
+which increaces the cohesion of the system, thereby freeing the kernel to focus on the
 jobs that it is designed to perform.
 
 the shell is a interface for the user to use with the kernel.
@@ -101,9 +101,53 @@ the shell is a interface for the user to use with the kernel.
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+struct t_file {
+  struct file *file;
+  int fd;
+  struct list_elem elem;
+};
+
+This struct is a wrapper for a file and a file descriptor, it also acts as a way to add files to a list
+
+struct thread
+  {
+    /* Owned by thread.c. */
+    tid_t tid;                          /* Thread identifier. */
+    enum thread_status status;          /* Thread state. */
+    char name[16];                      /* Name (for debugging purposes). */
+    uint8_t *stack;                     /* Saved stack pointer. */
+    int priority;                       /* Priority. */
+    struct list_elem allelem;           /* List element for all threads list. */
+
+    /* Shared between thread.c and synch.c. */
+    struct list_elem elem;              /* List element. */
+
+#ifdef USERPROG
+    /* Owned by userprog/process.c. */
+    uint32_t *pagedir;                  /* Page directory. */
+#endif
+
+    /* Owned by thread.c. */
+    unsigned magic;                     /* Detects stack overflow. */
+
+    struct list files;
+    int fd;
+
+  };
+
+  a list was added to the struct for threads to contain all files that a thread is handling
+  an integer called fd was added to act as a file descriptor, this integer is incremented with every new file_read
+
+
+
 >> B2: Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
+
+File descriptors are associated with open files because each 't_file' struct contains a file and a file descriptor
+The file descriptor is retrieved from the process and is incremented every time a new file is opened, once it is incremented
+it is assigned to the file descriptor property of the 't_file' struct which is then added to the list 'files', which is a list of
+files that a process is handling
 
 ---- ALGORITHMS ----
 
@@ -132,9 +176,9 @@ stack. then we acquire the file with a file descriptor of "fd" from the current 
 thread and we store that file within a stuct "file". Then we test to make sure
 that the file was stored successfully by compairing the file to the value NULL.
 if file does not equal NULL, or if the file's fd == 1 (in which case we are writing to
-STDCOUT), then we can write to the file. we use the function file_write() to all the 
+STDCOUT), then we can write to the file. we use the function file_write() to all the
 possible bits that we can write, and we return the value of this function, which is the
-number of bytest that were written to the file. if fd == 1, then we use the function 
+number of bytest that were written to the file. if fd == 1, then we use the function
 putbuf() to write directly to the consol
 
 >> B4: Suppose a system call causes a full page (4,096 bytes) of data
@@ -144,7 +188,16 @@ putbuf() to write directly to the consol
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
 
+At the very least, the number of calls will be 1 if the function pagedir_get_page() doesn't use pointer
+validation. Also, all the data must be stored on a single page for this to be true. The only
+call would occur when memcpy passes the pointer returned by pagedir_get_page().
+
 >> B5: Briefly describe your implementation of the "wait" system call.
+
+A tid corresponds to a child process and this is done by going through the list of structs that correspond to the child
+process. IF not found, the thread does not exist or wait is already called, this returns the error value -1.
+On the other hand, if the child is found, it is checked to see if the child is dead or not. If alive, we wait
+for it to die.
 
 >> B6: Any access to user program memory at a user-specified address
 >> can fail due to a bad pointer value.  Such accesses must cause the
