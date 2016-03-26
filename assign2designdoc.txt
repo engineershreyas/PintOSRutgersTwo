@@ -9,8 +9,8 @@
 >> Fill in the names and email addresses of your group members.
 
 Cedric Blake <cedricblake48@gmail.com>
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+Jonathan Cheng <jonathan.cheng@rutgers.edu>
+Shreyas Hirday <email@domain.example>
 
 
 ---- PRELIMINARIES ----
@@ -213,11 +213,20 @@ for it to die.
 >> paragraphs, describe the strategy or strategies you adopted for
 >> managing these issues.  Give an example.
 
+We check to make sure that the arguments are parsed and can fit onto the stack. 
+In case this kind of situation happens, we implemented a function called argcheck 
+to see if the inputs are working properly. 
+
+
+
 ---- SYNCHRONIZATION ----
 
 >> B7: The "exec" system call returns -1 if loading the new executable
 >> fails, so it cannot return before the new executable has completed
 >> loading.  How does your code ensure this?
+
+The use of a barrier would allow the new executable to complete its loading.
+
 
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
@@ -226,13 +235,26 @@ for it to die.
 >> terminates without waiting, before C exits?  After C exits?  Are
 >> there any special cases?
 
+We make sure to check that the child exists, so that we can use the 
+built-in function free() to deallocate resources. To better ensure 
+that there's proper synchronization, there should have been locks 
+between the code while we are running the free() function and exit function. 
+
 ---- RATIONALE ----
 
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
 
+The implementation of the wait function takes the pid of a child for the
+thread that is waiting. The parent checks to see if the child exists or not, 
+and if it is on the list or not. Finding a child will cause the thread to
+read it and see if it is still running/alive or not. If it isn't running, 
+then the function will return a value; if it is, we wait. 
+
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
+
+The file descriptors have a maximum limit to name the file itself.
 
 			   SURVEY QUESTIONS
 			   ================
