@@ -82,7 +82,7 @@ void close(int fd){
   for(el = list_begin(&t->files); el != list_end(&t->files); el = list_next(el)){
     struct t_file *tf = list_entry(el, struct t_file, elem);
     if(tf->fd == fd){
-      struct t_file *tf = list_remove(&tf->elem);
+      list_remove(&tf->elem);
       file_close(tf->file);
       free(tf);
       lock_release(&file_lock);
