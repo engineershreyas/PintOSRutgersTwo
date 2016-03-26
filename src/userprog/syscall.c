@@ -35,8 +35,39 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED)
 {
-  printf ("system call!\n");
-  thread_exit ();
+  int arg[MAX_ARGS];
+  check_valid_ptr((const void*)f->esp);
+  switch(* (int *) f->esp){
+    case SYS_CREATE:
+      {
+	get_arg(f, &arg[0], 2);
+	arg[0] = user_to_kernel_ptr((const void *) arg[0]);
+	f->eax = create((const char *)arg[0], (unsigned) arg[1]);
+	break;
+      }
+    case SYS_REMOVE:
+      {
+	get_arg(f, &arg[0], 1);
+	arg[0] = user_to_kernel_ptr((const void *) arg[0]);
+	f->eax = remove((const char *) arg[0]);
+	break;
+      }
+    case SYS_OPEN:
+      {
+	get_arg(f, &arg[0], 1);
+	arg[0] = user_to_kernel_ptr((const void *) arg[0]);
+	f->eax = open((const char *) arg[0]);
+	break;
+      }
+    case SYS_FILESIZE:
+      {
+	get_arg(f, &arg[0], 1);
+	f->eax = filesize(arg[0]);
+	break;
+      }
+  }
+  //printf ("system call!\n");
+  //thread_exit ();
 }
 
 bool create(const char *file, unsigned initial_size){
