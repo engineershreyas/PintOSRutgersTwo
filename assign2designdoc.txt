@@ -1,0 +1,203 @@
++--------------------------+
+       	       	     |		ECE 434		|
+		     | PROJECT 2: USER PROGRAMS	|
+		     | 	   DESIGN DOCUMENT     	|
+		     +--------------------------+
+
+---- GROUP ----
+
+>> Fill in the names and email addresses of your group members.
+
+Cedric Blake <cedricblake48@gmail.com>
+FirstName LastName <email@domain.example>
+FirstName LastName <email@domain.example>
+
+
+---- PRELIMINARIES ----
+
+>> If you have any preliminary comments on your submission, notes for the
+>> TAs, or extra credit, please give them here.
+
+>> Please cite any offline or online sources you consulted while
+>> preparing your submission, other than the Pintos documentation, course
+>> text, lecture notes, and course staff.
+
+			   ARGUMENT PASSING
+			   ================
+
+---- DATA STRUCTURES ----
+
+>> A1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+1)
+
+struct listString {
+  char* arg;
+  struct list_elem elem;
+};
+
+this struct allows us to reorder the string arguments so that we may push to the stack
+in the correct order.
+
+2)
+
+struct listString stringElem;
+
+used to acquire a arguement from "listOfArgs"
+
+3)
+
+struct list listOfArgs;
+
+hold the args after parsing so we may push them to the stack
+
+
+---- ALGORITHMS ----
+
+>> A2: Briefly describe how you implemented argument parsing.  How do
+>> you arrange for the elements of argv[] to be in the right order?
+
+for (token = strtok_r(fName, " ", savePlace); token != NULL; token = strtok_r(NULL, " ", savePlace)) {
+    stringElem.arg = token;
+    list_push_front(&listOfArgs, &stringElem.elem);
+}
+
+used the "strtok_r()" function in the condition statement of the for loop to parse each argument, then push that
+arguement to "listOfArgs". the arguements were parsed from left to right, so we push each arguement
+to the front of the stack on each iteration such that the last arguement is the first element of "listOfArgs".
+from here, we simply pop the front of the list for each arguement that we push onto the stack from the last arguement
+to the first arguement. 
+
+---- RATIONALE ----
+
+>> A3: Why does Pintos implement strtok_r() but not strtok()?
+
+strtok_r() takes in a third parameter, save_pointer, that is a pointer to a char*. the
+save_ptr allows us to keep track of the tokenizer pointer that points to the next
+word in the string to be parsed. Because we, as the OS programmer, provide the save_ptr
+to the function, each thread that calls this function will have their own unique save_ptr to their
+own strtow_r() function, such that each thred will only be able to access their own arguements
+for each file
+
+>> A4: In Pintos, the kernel separates commands into a executable name
+>> and arguments.  In Unix-like systems, the shell does this
+>> separation.  Identify at least two advantages of the Unix approach.
+
+the kernel's job is to track time and manage memory of the system. Arguement parsing is not
+involved in either of these jobs. Therefore, we can assign this job to a user program instead,
+which increaces the cohesion of the system, thereby freeing the kernel to focus on the 
+jobs that it is designed to perform.
+
+the shell is a interface for the user to use with the kernel.
+
+			     SYSTEM CALLS
+			     ============
+
+---- DATA STRUCTURES ----
+
+>> B1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+>> B2: Describe how file descriptors are associated with open files.
+>> Are file descriptors unique within the entire OS or just within a
+>> single process?
+
+---- ALGORITHMS ----
+
+>> B3: Describe your code for reading and writing user data from the
+>> kernel.
+
+Reading user data:
+
+this function requires 3 paramenters; fd, buffer, and size.
+we first test that the case "SYS_READ" can store all these parameters to the
+stack. If that test passes, then we assign the locations of each paramenter to the
+stack. then we acquire the file with a file descriptor of "fd" from the current running
+thread and we store that file within a stuct "file". Then we test to make sure
+that the file was stored successfully by compairing the file to the value NULL.
+if file does not equal NULL, or if the file's fd == 0 (which indicates that we are
+reading from keyboard input), then we can read the file by using the file_read() function
+which returns the number of bytes read. if fd == 0, then we use a different function, input_getc()
+which reads the keystrokes from the user
+
+Writing user data:
+
+this function requires 3 paramenters; fd, buffer, and size.
+we first test that the case "SYS_WRITE" can store all these parameters to the
+stack. If that test passes, then we assign the locations of each paramenter to the
+stack. then we acquire the file with a file descriptor of "fd" from the current running
+thread and we store that file within a stuct "file". Then we test to make sure
+that the file was stored successfully by compairing the file to the value NULL.
+if file does not equal NULL, or if the file's fd == 1 (in which case we are writing to
+STDCOUT), then we can write to the file. we use the function file_write() to all the 
+possible bits that we can write, and we return the value of this function, which is the
+number of bytest that were written to the file. if fd == 1, then we use the function 
+putbuf() to write directly to the consol
+
+>> B4: Suppose a system call causes a full page (4,096 bytes) of data
+>> to be copied from user space into the kernel.  What is the least
+>> and the greatest possible number of inspections of the page table
+>> (e.g. calls to pagedir_get_page()) that might result?  What about
+>> for a system call that only copies 2 bytes of data?  Is there room
+>> for improvement in these numbers, and how much?
+
+>> B5: Briefly describe your implementation of the "wait" system call.
+
+>> B6: Any access to user program memory at a user-specified address
+>> can fail due to a bad pointer value.  Such accesses must cause the
+>> process to be terminated.  System calls are fraught with such
+>> accesses, e.g. a "write" system call requires reading the system
+>> call number from the user stack, then each of the call's three
+>> arguments, then an arbitrary amount of user memory, and any of
+>> these can fail at any point.  This poses a design and
+>> error-handling problem: how do you best avoid obscuring the primary
+>> function of code in a morass of error-handling?  Furthermore, when
+>> an error is detected, how do you ensure that all temporarily
+>> allocated resources (locks, buffers, etc.) are freed?  In a few
+>> paragraphs, describe the strategy or strategies you adopted for
+>> managing these issues.  Give an example.
+
+---- SYNCHRONIZATION ----
+
+>> B7: The "exec" system call returns -1 if loading the new executable
+>> fails, so it cannot return before the new executable has completed
+>> loading.  How does your code ensure this?
+
+>> B8: Consider parent process P with child process C.  How do you
+>> ensure proper synchronization and avoid race conditions when P
+>> calls wait(C) before C exits?  After C exits?  How do you ensure
+>> that all resources are freed in each case?  How about when P
+>> terminates without waiting, before C exits?  After C exits?  Are
+>> there any special cases?
+
+---- RATIONALE ----
+
+>> B9: Why did you choose to implement access to user memory from the
+>> kernel in the way that you did?
+
+>> B10: What advantages or disadvantages can you see to your design
+>> for file descriptors?
+
+			   SURVEY QUESTIONS
+			   ================
+
+Answering these questions is optional, but it will help us improve the
+course in future quarters.  Feel free to tell us anything you
+want--these questions are just to spur your thoughts.  You may also
+choose to respond anonymously in the course evaluations at the end of
+the quarter.
+
+>> In your opinion, was this assignment, or any one of the three problems
+>> in it, too easy or too hard?  Did it take too long or too little time?
+
+>> Did you find that working on a particular part of the assignment gave
+>> you greater insight into some aspect of OS design?
+
+>> Is there some particular fact or hint we should give students in
+>> future quarters to help them solve the problems?  Conversely, did you
+>> find any of our guidance to be misleading?
+
+>> Any other comments?
