@@ -79,7 +79,7 @@ void close(int fd){
   struct thread *t = thread_current();
   struct list_elem *el;
 
-  for(el = list_begin(&t->files); el ! list_end(&t->files); el = list_next(elem)){
+  for(el = list_begin(&t->files); el != list_end(&t->files); el = list_next(elem)){
     struct t_file *tf = list_entry(el, struct t_file, elem);
     if(tf->fd == fd){
       struct t_file *tf = list_remove(tf->elem);
