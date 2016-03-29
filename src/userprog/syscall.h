@@ -1,7 +1,21 @@
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
 #include "threads/synch.h"
+
+#include <stdbool.h>
+#include <stdint.h>
+
 void syscall_init (void);
+bool argCheck(struct intr_frame* f, int numberOfArgs);
+
+//shreyas methods
+bool create (const char *file, unsigned initial_size);
+bool remove (const char *file);
+int  open (const char *file);
+int  filesize (int fd);
+void close (int fd);
+
+
 
 
 
@@ -19,14 +33,14 @@ struct child_prc { // our code for child process; borrowing thread synchronizati
 };
 
 struct child_prc* add_child_proc (int pid);
-void rem_child_proc (struct child_prc *chpr);
+//void rem_child_proc (struct child_prc *chpr);
 struct child_prc* get_child_proc (int pid);
-void rem_child_proc (void);
+//void rem_child_proc (void);
 
-void halt(); //Function 1
+void halt(void); //Function 1
 void exit(int status); //Function 2 
 void exit(int status); //Function 3
-int wait(pid_t pid) //Function 4
+int wait(int pid); //Function 4
 
 
 
